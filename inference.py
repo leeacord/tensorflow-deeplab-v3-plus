@@ -7,6 +7,7 @@ from __future__ import print_function
 import argparse
 import os
 import sys
+from pathlib import Path
 
 import tensorflow as tf
 
@@ -27,9 +28,6 @@ parser.add_argument('--data_dir', type=str, default='dataset/VOCdevkit/VOC2012/J
 parser.add_argument('--output_dir', type=str, default='./dataset/inference_output',
                     help='Path to the directory to generate the inference results')
 
-parser.add_argument('--infer_data_list', type=str, default='./dataset/sample_images_list.txt',
-                    help='Path to the file listing the inferring images.')
-
 parser.add_argument('--model_dir', type=str, default='./model',
                     help="Base directory for the model. "
                          "Make sure 'model_checkpoint_path' given in 'checkpoint' file matches "
@@ -46,7 +44,7 @@ parser.add_argument('--output_stride', type=int, default=16,
 parser.add_argument('--debug', action='store_true',
                     help='Whether to use debugger to track down bad values during training.')
 
-_NUM_CLASSES = 21
+_NUM_CLASSES = 2
 
 
 def main(unused_argv):
@@ -70,9 +68,7 @@ def main(unused_argv):
           'num_classes': _NUM_CLASSES,
       })
 
-  examples = dataset_util.read_examples_list(FLAGS.infer_data_list)
-  image_files = [os.path.join(FLAGS.data_dir, filename) for filename in examples]
-
+  image_files = [str(i) for i in Path(FLAGS.data_dir).glob('*.jpg')]
   predictions = model.predict(
         input_fn=lambda: preprocessing.eval_input_fn(image_files),
         hooks=pred_hooks)

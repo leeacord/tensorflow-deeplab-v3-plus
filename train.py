@@ -80,13 +80,13 @@ parser.add_argument('--weight_decay', type=float, default=2e-4,
 parser.add_argument('--debug', action='store_true',
                     help='Whether to use debugger to track down bad values during training.')
 
-_NUM_CLASSES = 21
-_HEIGHT = 513
-_WIDTH = 513
-_DEPTH = 3
-_MIN_SCALE = 0.5
-_MAX_SCALE = 2.0
-_IGNORE_LABEL = 255
+_NUM_CLASSES = 2
+# _HEIGHT = 128
+# _WIDTH = 513
+# _DEPTH = 3
+# _MIN_SCALE = 0.5
+# _MAX_SCALE = 2.0
+# _IGNORE_LABEL = 255
 
 _POWER = 0.9
 _MOMENTUM = 0.9
@@ -94,8 +94,8 @@ _MOMENTUM = 0.9
 _BATCH_NORM_DECAY = 0.9997
 
 _NUM_IMAGES = {
-    'train': 10582,
-    'validation': 1449,
+    'train': 2000,
+    'validation': 2000,
 }
 
 
@@ -109,12 +109,12 @@ def get_filenames(is_training, data_dir):
   Returns:
     A list of file names.
   """
-  if is_training:
-    return [os.path.join(data_dir, 'train.record')]
-  else:
-    return [os.path.join(data_dir, 'val.record')]
+    if is_training:
+        return [os.path.join(data_dir, 'train2k.tfrecord')]
+    else:
+        return [os.path.join(data_dir, 'train.tfrecord')]
 
-
+'''
 def parse_record(raw_record):
   """Parse PASCAL image and label from a tf record."""
   keys_to_features = {
@@ -164,15 +164,75 @@ def preprocess_image(image, label, is_training):
     # Randomly flip the image and label horizontally.
     image, label = preprocessing.random_flip_left_right_image_and_label(
         image, label)
+'''
 
-    image.set_shape([_HEIGHT, _WIDTH, 3])
-    label.set_shape([_HEIGHT, _WIDTH, 1])
+feature = {
+    'image': tf.io.FixedLenFeature([], tf.string),
+    'gt': tf.io.FixedLenFeature([], tf.string),
+    'label': tf.io.FixedLenFeature([], tf.int64),
+}
 
-  image = preprocessing.mean_image_subtraction(image)
+Mode_128 = True
+Random_Size = False
+Hue_Distort = True
+Gray_Mode = False
 
-  return image, label
+
+def decode_powerline_func(x):
+    features = tf.io.parse_single_example(x, feature)
+    jpg_array_img = tf.io.decode_jpeg(features['image'], channels=3)
+    jpg_array_gt = tf.io.decode_jpeg(features['gt'], channels=1)
+    
+    initial_width = tf.cast(tf.shape(jpg_array_img)[0], tf.float32)
+    initial_height = tf.cast(tf.shape(jpg_array_img)[1], tf.float32)
+    if Mode_128:
+        # If the shape of image is 128x128, uncomment this:
+        img = jpg_array_img
+        gt = jpg_array_gt
+    else:
+        # If the shape of image IS NOT 128x128, the following is not required.
+        lo_dim = 130.0
+        # Take the greater value, and use it for the ratio
+        min_ = tf.minimum(initial_width, initial_height)
+        ratio = min_ / lo_dim
+        new_width = tf.cast(initial_width / ratio, tf.int32)
+        new_height = tf.cast(initial_height / ratio, tf.int32)
+        
+        img = tf.image.resize_images(jpg_array_img, (new_width, new_height), preserve_aspect_ratio=False)
+        img = tf.cast(img, tf.uint8)
+        img = tf.image.random_crop(img, (128, 128, 3), 1)
+        
+        gt = tf.image.resize_images(jpg_array_gt, (new_width, new_height), preserve_aspect_ratio=False)
+        gt = tf.cast(gt, tf.uint8)
+        gt = tf.image.random_crop(gt, (128, 128, 1), 1)
+    if Random_Size:
+        exp = tf.random.uniform(())
+        img = tf.image.resize_images(img, (128 + tf.cast(256 * exp, tf.int32), 128 + tf.cast(256 * exp, tf.int32)),
+                                     preserve_aspect_ratio=False)
+        img = tf.image.random_crop(img, (128, 128, 3))
+    if Hue_Distort and not Gray_Mode:
+        img = tf.image.random_hue(img, 0.5)
+    img, gt = tf.cond(tf.random.uniform(()) > 0.5,
+                      lambda: (tf.image.flip_left_right(img), tf.image.flip_left_right(gt)), lambda: (img, gt))
+    gt = tf.where(gt > 128, tf.constant(1, tf.uint8, (128, 128, 1)), tf.constant(0, tf.uint8, (128, 128, 1)),
+                  name='binary_img')
+    features['image'] = img
+    features['gt'] = gt
+    return features
 
 
+def input_fn(is_training, data_dir, batch_size, num_epochs=1):
+    dataset = tf.data.TFRecordDataset(get_filenames(is_training, data_dir), buffer_size=500)
+    dataset = dataset.cache().repeat(num_epochs).shuffle(1024).map(decode_powerline_func, tf.data.experimental.AUTOTUNE).batch(
+        batch_size).prefetch(
+        tf.data.experimental.AUTOTUNE)
+    iter_a = dataset.make_one_shot_iterator()
+    iterI = iter_a.get_next()
+    img = tf.cast(iterI['image'], tf.float32)
+    gt = tf.cast(iterI['gt'], tf.int32)
+    return img, gt
+
+'''
 def input_fn(is_training, data_dir, batch_size, num_epochs=1):
   """Input_fn using the tf.data input pipeline for CIFAR-10 dataset.
 
@@ -209,6 +269,7 @@ def input_fn(is_training, data_dir, batch_size, num_epochs=1):
 
   return images, labels
 
+'''
 
 def main(unused_argv):
   # Using the Winograd non-fused algorithms provides a small performance boost.

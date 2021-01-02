@@ -203,21 +203,28 @@ def deeplabv3_plus_model_fn(features, labels, mode, params):
 
   logits_by_num_classes = tf.reshape(logits, [-1, params['num_classes']])
   labels_flat = tf.reshape(labels, [-1, ])
-
+  real_line = tf.equal(labels, 1)
+  logits_line = tf.equal(tf.squeeze(pred_classes, axis=-1), 1)
+  And = tf.reduce_sum(tf.cast(tf.logical_and(real_line, logits_line), tf.float32))
+  Or = tf.reduce_sum(tf.cast(tf.logical_or(real_line, logits_line), tf.float32))
+  liou = And/Or
+  tf.identity(liou, name='line_iou')
+  tf.summary.scalar('line_iou', liou)
   valid_indices = tf.to_int32(labels_flat <= params['num_classes'] - 1)
-  valid_logits = tf.dynamic_partition(logits_by_num_classes, valid_indices, num_partitions=2)[1]
-  valid_labels = tf.dynamic_partition(labels_flat, valid_indices, num_partitions=2)[1]
+  valid_logits = logits_by_num_classes
+  valid_labels = labels_flat
 
   preds_flat = tf.reshape(pred_classes, [-1, ])
-  valid_preds = tf.dynamic_partition(preds_flat, valid_indices, num_partitions=2)[1]
+  valid_preds = preds_flat
   confusion_matrix = tf.confusion_matrix(valid_labels, valid_preds, num_classes=params['num_classes'])
 
   predictions['valid_preds'] = valid_preds
   predictions['valid_labels'] = valid_labels
   predictions['confusion_matrix'] = confusion_matrix
 
+  weight_matrix = tf.cast(tf.equal(valid_labels, 1), tf.float32)*9+1
   cross_entropy = tf.losses.sparse_softmax_cross_entropy(
-      logits=valid_logits, labels=valid_labels)
+      logits=valid_logits, labels=valid_labels, weights=weight_matrix)
 
   # Create a tensor named cross_entropy for logging purposes.
   tf.identity(cross_entropy, name='cross_entropy')
