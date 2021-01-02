@@ -65,7 +65,7 @@ parser.add_argument('--output_stride', type=int, default=16,
 parser.add_argument('--freeze_batch_norm', action='store_true',
                     help='Freeze batch normalization parameters during the training.')
 
-parser.add_argument('--initial_learning_rate', type=float, default=7e-3,
+parser.add_argument('--initial_learning_rate', type=float, default=0.01,
                     help='Initial learning rate for the optimizer.')
 
 parser.add_argument('--end_learning_rate', type=float, default=1e-6,
@@ -98,10 +98,14 @@ _NUM_IMAGES = {
     'validation': 2000,
 }
 
+Mode_128 = True       # Whether the size of image is 128x128
+Random_Size = False
+Hue_Distort = True    # Use Hue_Distort
+Gray_Mode = False     # Converting image to gray or not
+
 
 def get_filenames(is_training, data_dir):
   """Return a list of filenames.
-
   Args:
     is_training: A boolean denoting whether the input is for training.
     data_dir: path to the the directory containing the input data.
@@ -109,10 +113,10 @@ def get_filenames(is_training, data_dir):
   Returns:
     A list of file names.
   """
-    if is_training:
-        return [os.path.join(data_dir, 'train2k.tfrecord')]
-    else:
-        return [os.path.join(data_dir, 'train.tfrecord')]
+  if is_training:
+    return [os.path.join(data_dir, 'train2k.tfrecord')]
+  else:
+    return [os.path.join(data_dir, 'train.tfrecord')]
 
 '''
 def parse_record(raw_record):
@@ -171,11 +175,6 @@ feature = {
     'gt': tf.io.FixedLenFeature([], tf.string),
     'label': tf.io.FixedLenFeature([], tf.int64),
 }
-
-Mode_128 = True
-Random_Size = False
-Hue_Distort = True
-Gray_Mode = False
 
 
 def decode_powerline_func(x):
@@ -310,6 +309,7 @@ def main(unused_argv):
       'cross_entropy': 'cross_entropy',
       'train_px_accuracy': 'train_px_accuracy',
       'train_mean_iou': 'train_mean_iou',
+      'line_iou': 'line_iou'
     }
 
     logging_hook = tf.train.LoggingTensorHook(
