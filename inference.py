@@ -68,7 +68,7 @@ def main(unused_argv):
           'num_classes': _NUM_CLASSES,
       })
 
-  image_files = [str(i) for i in Path(FLAGS.data_dir).glob('*.jpg')]
+  image_files = [str(i) for i in Path(FLAGS.data_dir).glob('./*') if i.suffix in ['.jpg', '.png']]
   predictions = model.predict(
         input_fn=lambda: preprocessing.eval_input_fn(image_files),
         hooks=pred_hooks)

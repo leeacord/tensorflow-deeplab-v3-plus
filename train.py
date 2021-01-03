@@ -215,7 +215,7 @@ def decode_powerline_func(x):
                       lambda: (tf.image.flip_left_right(img), tf.image.flip_left_right(gt)), lambda: (img, gt))
     gt = tf.where(gt > 128, tf.constant(1, tf.uint8, (128, 128, 1)), tf.constant(0, tf.uint8, (128, 128, 1)),
                   name='binary_img')
-    features['image'] = img
+    features['image'] = preprocessing.mean_image_subtraction(img)
     features['gt'] = gt
     return features
 
