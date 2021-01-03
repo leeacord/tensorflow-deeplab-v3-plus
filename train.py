@@ -215,6 +215,7 @@ def decode_powerline_func(x):
                       lambda: (tf.image.flip_left_right(img), tf.image.flip_left_right(gt)), lambda: (img, gt))
     gt = tf.where(gt > 128, tf.constant(1, tf.uint8, (128, 128, 1)), tf.constant(0, tf.uint8, (128, 128, 1)),
                   name='binary_img')
+    img = tf.cast(img, tf.float32)
     features['image'] = preprocessing.mean_image_subtraction(img)
     features['gt'] = gt
     return features
@@ -227,7 +228,7 @@ def input_fn(is_training, data_dir, batch_size, num_epochs=1):
         tf.data.experimental.AUTOTUNE)
     iter_a = dataset.make_one_shot_iterator()
     iterI = iter_a.get_next()
-    img = tf.cast(iterI['image'], tf.float32)
+    img = iterI['image']
     gt = tf.cast(iterI['gt'], tf.int32)
     return img, gt
 
