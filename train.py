@@ -116,7 +116,7 @@ def get_filenames(is_training, data_dir):
   if is_training:
     return [os.path.join(data_dir, 'train2k.tfrecord')]
   else:
-    return [os.path.join(data_dir, 'train.tfrecord')]
+    return [os.path.join(data_dir, 'train2k.tfrecord')]
 
 '''
 def parse_record(raw_record):
