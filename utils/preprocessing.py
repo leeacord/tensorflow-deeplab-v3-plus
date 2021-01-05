@@ -112,6 +112,23 @@ def mean_image_subtraction(image, means=(_R_MEAN, _G_MEAN, _B_MEAN)):
   return tf.concat(axis=2, values=channels)
 
 
+def mean_image_subtraction_numpy(image, means=(_R_MEAN, _G_MEAN, _B_MEAN)):
+  if len(image.shape) != 3:
+    raise ValueError('Input must be of size [height, width, C>0]')
+  num_channels = image.shape[-1]
+  if len(means) != num_channels:
+    raise ValueError('len(means) must match the number of channels')
+  return image - np.array(means).reshape(1, 1, 3)
+
+
+def mean_image_addition_numpy(image, means=(_R_MEAN, _G_MEAN, _B_MEAN)):
+  if len(image.shape) != 3:
+    raise ValueError('Input must be of size [height, width, C>0]')
+  num_channels = image.shape[-1]
+  if len(means) != num_channels:
+    raise ValueError('len(means) must match the number of
+
+
 def random_rescale_image_and_label(image, label, min_scale, max_scale):
   """Rescale an image and label with in target scale.
 
